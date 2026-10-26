@@ -1,5 +1,5 @@
-const TEMPOS={largo:{label:'Largo',ratio:1.6,hint:'충분히 생각하며 · 1.60×'},adagio:{label:'Adagio',ratio:1.35,hint:'천천히 정확하게 · 1.35×'},andante:{label:'Andante',ratio:1.15,hint:'기본보다 조금 여유롭게 · 1.15×'},allegro:{label:'Allegro',ratio:.9,hint:'빠른 계산 연습 · 0.90×'},presto:{label:'Presto',ratio:.7,hint:'최고 속도 도전 · 0.70×'}};
-const MODES={decimal:{label:'소수 덧셈·뺄셈',seconds:12},multiply:{label:'한 자리 곱셈',seconds:8},mixed:{label:'혼합 계산',seconds:15},hess:{label:'헤스 법칙',seconds:75}};
+const TEMPOS={largo:{label:'Largo',ratio:1.8,hint:'가장 여유롭게 · 1.80×'},adagio:{label:'Adagio',ratio:1.4,hint:'천천히 · 1.40×'},andante:{label:'Andante',ratio:1,hint:'기본 속도 · 1.00×'},allegro:{label:'Allegro',ratio:.7,hint:'빠르게 · 0.70×'},presto:{label:'Presto',ratio:.45,hint:'최고 속도 · 0.45×'}};
+const MODES={decimal:{label:'소수 덧셈·뺄셈',seconds:10},multiply:{label:'한 자리 곱셈',seconds:6},mixed:{label:'혼합 계산',seconds:12},hess:{label:'헤스 법칙',seconds:60}};
 const state={mode:'decimal',count:20,tempo:'andante',questions:[],index:0,score:0,combo:0,bestCombo:0,correct:0,attempted:0,mistakes:[],questionStart:0,sessionStart:0,timer:null,remaining:0,locked:false};
 const $=id=>document.getElementById(id);
 const screens=['setupScreen','quizScreen','resultScreen'];
@@ -23,16 +23,21 @@ const HESS_TEMPLATES=[
  {goal:'2C(s) + 2H₂(g) → C₂H₄(g)',rows:['C(s) + O₂(g) → CO₂(g)|{a}','H₂(g) + ½O₂(g) → H₂O(l)|{b}','C₂H₄(g) + 3O₂(g) → 2CO₂(g) + 2H₂O(l)|{c}'],op:(a,b,c)=>2*a+2*b-c,ex:'앞의 두 반응은 각각 2배하고, 에틸렌 연소 반응은 뒤집어 합합니다.'},
  {goal:'2SO₂(g) + O₂(g) → 2SO₃(g)',rows:['S(s) + O₂(g) → SO₂(g)|{a}','2S(s) + 3O₂(g) → 2SO₃(g)|{b}'],op:(a,b)=>b-2*a,ex:'첫 반응을 2배한 뒤 뒤집고 두 번째 반응과 더합니다.'},
  {goal:'CH₄(g) + 2O₂(g) → CO₂(g) + 2H₂O(l)',rows:['C(s) + 2H₂(g) → CH₄(g)|{a}','C(s) + O₂(g) → CO₂(g)|{b}','H₂(g) + ½O₂(g) → H₂O(l)|{c}'],op:(a,b,c)=>b+2*c-a,ex:'CH₄ 생성 반응을 뒤집고, 물 생성 반응은 2배하여 더합니다.'},
- {goal:'H₂(g) + Cl₂(g) → 2HCl(g)',rows:['½H₂(g) + ½Cl₂(g) → HCl(g)|{a}'],op:a=>2*a,ex:'목표 반응의 계수가 2배이므로 ΔH도 2배합니다.'},
+ {goal:'H₂(g) + Cl₂(g) → 2HCl(g)',rows:['H₂(g) + ½O₂(g) → H₂O(l)|{a}','HCl(g) + ¼O₂(g) → ½H₂O(l) + ½Cl₂(g)|{b}'],op:(a,b)=>a-2*b,ex:'두 번째 반응을 뒤집어 2배한 뒤 첫 번째 반응과 더하면 H₂O와 O₂가 소거됩니다.'},
  {goal:'CaCO₃(s) → CaO(s) + CO₂(g)',rows:['Ca(s) + ½O₂(g) → CaO(s)|{a}','C(s) + O₂(g) → CO₂(g)|{b}','Ca(s) + C(s) + 3/2O₂(g) → CaCO₃(s)|{c}'],op:(a,b,c)=>a+b-c,ex:'CaCO₃ 생성 반응을 뒤집고 나머지 생성 반응과 더합니다.'},
  {goal:'2H₂O₂(l) → 2H₂O(l) + O₂(g)',rows:['H₂(g) + O₂(g) → H₂O₂(l)|{a}','H₂(g) + ½O₂(g) → H₂O(l)|{b}'],op:(a,b)=>2*(b-a),ex:'두 반응의 차로 H₂O₂ 1몰 분해 반응을 만든 뒤 전체를 2배합니다.'},
  {goal:'CO₂(g) + H₂(g) → CO(g) + H₂O(g)',rows:['CO(g) + ½O₂(g) → CO₂(g)|{a}','H₂(g) + ½O₂(g) → H₂O(g)|{b}'],op:(a,b)=>b-a,ex:'CO 연소 반응을 뒤집어 수소 연소 반응과 더합니다.'},
- {goal:'2NH₃(g) → N₂(g) + 3H₂(g)',rows:['N₂(g) + 3H₂(g) → 2NH₃(g)|{a}'],op:a=>-a,ex:'목표 반응은 주어진 반응의 역반응이므로 ΔH의 부호만 바꿉니다.'}
+ {goal:'4NH₃(g) + 3O₂(g) → 2N₂(g) + 6H₂O(l)',rows:['N₂(g) + O₂(g) → 2NO(g)|{a}','4NH₃(g) + 5O₂(g) → 4NO(g) + 6H₂O(l)|{b}'],op:(a,b)=>b-2*a,ex:'첫 번째 반응을 2배해 뒤집고 두 번째 반응과 더하면 NO와 O₂ 일부가 소거됩니다.'}
 ];
-const HESS_VALUES=[[-111,-283],[-68,-114],[-394,-286,-1411],[-297,-792],[-75,-394,-286],[-92],[-635,-394,-1207],[-188,-286],[-283,-242],[-92]];
-function createHessBank(){const bank=[];HESS_TEMPLATES.forEach((t,ti)=>{for(let v=0;v<4;v++){const vals=HESS_VALUES[ti].map((n,i)=>oneDecimal(n+(v*7*(i%2?1:-1))));const answer=oneDecimal(t.op(...vals));const rows=t.rows.map((r,i)=>{const [rx]=r.split('|');return `${rx}|${vals[i].toFixed(1)}`});bank.push({kind:'hess',goal:t.goal,rows,answer,explanation:`${t.ex} 따라서 ΔH = ${answer.toFixed(1)} kJ입니다.`})}});return bank}
+const HESS_VALUES=[[-111,-283],[-68,-114],[-394,-286,-1411],[-297,-792],[-75,-394,-286],[-286,-101],[-635,-394,-1207],[-188,-286],[-283,-242],[180,-906]];
+const HESS_DECOYS=[
+ ['2H₂(g) + O₂(g) → 2H₂O(l)',-572],['2CO(g) + O₂(g) → 2CO₂(g)',-566],
+ ['C(s) + 2H₂(g) → CH₄(g)',-75],['S(s) + O₂(g) → SO₂(g)',-297],
+ ['N₂(g) + O₂(g) → 2NO(g)',180],['2NO(g) + O₂(g) → 2NO₂(g)',-114]
+];
+function createHessBank(){const bank=[];HESS_TEMPLATES.forEach((t,ti)=>{for(let v=0;v<4;v++){const vals=HESS_VALUES[ti].map((n,i)=>oneDecimal(n+(v*7*(i%2?1:-1))));const answer=oneDecimal(t.op(...vals));const core=t.rows.map((r,i)=>{const [rx]=r.split('|');return `${rx}|${vals[i].toFixed(1)}`});const extras=[0,1].map(offset=>{const [rx,h]=HESS_DECOYS[(ti+v+offset*3)%HESS_DECOYS.length];return `${rx}|${oneDecimal(h+(v*5)).toFixed(1)}`});const rows=shuffle([...core,...extras]);bank.push({kind:'hess',goal:t.goal,rows,answer,explanation:`필요한 반응만 골라 계수배·역반응 처리 후 중간 물질을 소거합니다. ${t.ex} 따라서 ΔH = ${answer.toFixed(1)} kJ입니다.`})}});return bank}
 
-function hessHtml(q){return `<div class="hess-question"><p class="hess-goal">목표: ${q.goal}</p><div class="reaction-list">${q.rows.map((r,i)=>{const [rx,h]=r.split('|');return `<div class="reaction"><span>${i+1}. ${rx}</span><span class="enthalpy">ΔH = ${h} kJ</span></div>`}).join('')}</div><p class="hess-prompt">목표 반응의 ΔH를 구하세요.</p></div>`}
+function hessHtml(q){return `<div class="hess-question"><p class="hess-goal">목표: ${q.goal}</p><div class="reaction-list">${q.rows.map((r,i)=>{const [rx,h]=r.split('|');return `<div class="reaction"><span>${i+1}. ${rx}</span><span class="enthalpy">ΔH = ${h} kJ</span></div>`}).join('')}</div><p class="hess-prompt">불필요한 반응을 가려내고 목표 반응의 ΔH를 구하세요.</p></div>`}
 function buildQuestions(){if(state.mode==='hess'){const bank=shuffle(createHessBank()),result=[];while(result.length<state.count)result.push(...shuffle(bank));return result.slice(0,state.count)}return Array.from({length:state.count},()=>calcQuestion(state.mode))}
 function questionLimit(){return Math.round(MODES[state.mode].seconds*TEMPOS[state.tempo].ratio)}
 function updateEstimate(){const total=state.count*questionLimit();$('timeEstimate').textContent=total<60?`${total}초`:`${Math.floor(total/60)}분 ${total%60}초`}
